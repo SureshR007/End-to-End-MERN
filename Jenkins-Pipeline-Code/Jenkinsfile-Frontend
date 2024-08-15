@@ -18,7 +18,7 @@ pipeline {
         }
         stage('Checkout from Git') {
             steps {
-                git credentialsId: 'github', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
+                 git branch: 'main', credentialsId: 'github', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
             }
         }
         stage('Sonarqube Analysis') {

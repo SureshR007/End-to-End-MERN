@@ -81,7 +81,7 @@ pipeline {
         }
         stage('Checkout Code') {
             steps {
-                git credentialsId: 'GITHUB', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
+                git credentialsId: 'github', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
             }
         }
         stage('Update Deployment file') {

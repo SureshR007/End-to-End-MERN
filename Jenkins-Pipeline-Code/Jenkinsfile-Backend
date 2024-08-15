@@ -3,8 +3,8 @@ pipeline {
     tools {
         nodejs 'nodejs'
     }
-    environment  {
-        SCANNER_HOME=tool 'sonar-scanner'
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
         AWS_ACCOUNT_ID = credentials('ACCOUNT_ID')
         AWS_ECR_REPO_NAME = credentials('ECR_REPO1')
         AWS_DEFAULT_REGION = 'us-east-1'
@@ -18,7 +18,7 @@ pipeline {
         }
         stage('Checkout from Git') {
             steps {
-                 git branch: 'main', credentialsId: 'github', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
+                git branch: 'main', credentialsId: 'github', url: 'https://github.com/SureshR007/End-to-End-MERN.git'
             }
         }
         stage('Sonarqube Analysis') {
@@ -39,14 +39,6 @@ pipeline {
                 }
             }
         }
-        // stage('OWASP Dependency-Check Scan') {
-        //     steps {
-        //         dir('Application-Code/backend') {
-        //             dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-        //             dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-        //         }
-        //     }
-        // }
         stage('Trivy File Scan') {
             steps {
                 dir('Application-Code/backend') {
@@ -58,9 +50,9 @@ pipeline {
             steps {
                 script {
                     dir('Application-Code/backend') {
-                            sh 'docker system prune -f'
-                            sh 'docker container prune -f'
-                            sh 'docker build -t ${AWS_ECR_REPO_NAME} .'
+                        sh 'docker system prune -f'
+                        sh 'docker container prune -f'
+                        sh 'docker build -t ${AWS_ECR_REPO_NAME} .'
                     }
                 }
             }
@@ -68,9 +60,9 @@ pipeline {
         stage("ECR Image Pushing") {
             steps {
                 script {
-                        sh 'aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${REPOSITORY_URI}'
-                        sh 'docker tag ${AWS_ECR_REPO_NAME} ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
-                        sh 'docker push ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
+                    sh 'aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${REPOSITORY_URI}'
+                    sh 'docker tag ${AWS_ECR_REPO_NAME} ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
+                    sh 'docker push ${REPOSITORY_URI}${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}'
                 }
             }
         }
@@ -85,40 +77,38 @@ pipeline {
             }
         }
         stage('Update Deployment file') {
-    environment {
-        GIT_REPO_NAME = "End-to-End-MERN"
-        GIT_USER_NAME = "SureshR007"
-    }
-    steps {
-        dir('Kubernetes-Manifests-file/Backend') {
-            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                sh '''
-                    git config user.email "sureshkumarryapaniebiz@gmail.com"
-                    git config user.name "SureshR007"
-                    BUILD_NUMBER=${BUILD_NUMBER}
-                    echo "Current Directory:"
-                    pwd
-                    echo "Listing files in the directory:"
-                    ls -la
-                    echo "Checking deployment.yaml content:"
-                    if [ -f deployment.yaml ]; then
-                        cat deployment.yaml
-                    else
-                        echo "deployment.yaml file does not exist."
-                    fi
-                    imageTag=$(grep -oP '(?<=backend:)[^ ]+' deployment.yaml)
-                    echo $imageTag
-                    sed -i "s/${AWS_ECR_REPO_NAME}:${imageTag}/${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}/" deployment.yaml
-                    git add deployment.yaml
-                    git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
-                    git status
-                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                '''
+            environment {
+                GIT_REPO_NAME = "End-to-End-MERN"
+                GIT_USER_NAME = "SureshR007"
             }
-        }
-    }
-}
-
+            steps {
+                dir('Kubernetes-Manifests-file/Backend') {
+                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                        sh '''
+                            git config user.email "sureshkumarryapaniebiz@gmail.com"
+                            git config user.name "SureshR007"
+                            BUILD_NUMBER=${BUILD_NUMBER}
+                            echo "Current Directory:"
+                            pwd
+                            echo "Listing files in the directory:"
+                            ls -la
+                            echo "Checking deployment.yaml content:"
+                            if [ -f deployment.yaml ]; then
+                                cat deployment.yaml
+                                imageTag=$(grep -oP '(?<=backend:)[^ ]+' deployment.yaml)
+                                echo "Current image tag: $imageTag"
+                                sed -i "s/${AWS_ECR_REPO_NAME}:${imageTag}/${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}/" deployment.yaml
+                                git add deployment.yaml
+                                git commit -m "Update deployment Image to version ${BUILD_NUMBER}"
+                                git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                            else
+                                echo "deployment.yaml file does not exist."
+                                exit 1
+                            fi
+                        '''
+                    }
+                }
+            }
         }
     }
 }

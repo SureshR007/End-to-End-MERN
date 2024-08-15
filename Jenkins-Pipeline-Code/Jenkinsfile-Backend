@@ -85,28 +85,40 @@ pipeline {
             }
         }
         stage('Update Deployment file') {
-            environment {
-                GIT_REPO_NAME = "End-to-End-MERN"
-                GIT_USER_NAME = "SureshR007"
+    environment {
+        GIT_REPO_NAME = "End-to-End-MERN"
+        GIT_USER_NAME = "SureshR007"
+    }
+    steps {
+        dir('Kubernetes-Manifests-file/Backend') {
+            withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                sh '''
+                    git config user.email "sureshkumarryapaniebiz@gmail.com"
+                    git config user.name "SureshR007"
+                    BUILD_NUMBER=${BUILD_NUMBER}
+                    echo "Current Directory:"
+                    pwd
+                    echo "Listing files in the directory:"
+                    ls -la
+                    echo "Checking deployment.yaml content:"
+                    if [ -f deployment.yaml ]; then
+                        cat deployment.yaml
+                    else
+                        echo "deployment.yaml file does not exist."
+                    fi
+                    imageTag=$(grep -oP '(?<=backend:)[^ ]+' deployment.yaml)
+                    echo $imageTag
+                    sed -i "s/${AWS_ECR_REPO_NAME}:${imageTag}/${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}/" deployment.yaml
+                    git add deployment.yaml
+                    git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
+                    git status
+                    git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                '''
             }
-            steps {
-                dir('Kubernetes-Manifests-file/Backend') {
-                    withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                        sh '''
-                            git config user.email "sureshkumarryapaniebiz@gmail.com"
-                            git config user.name "SureshR007"
-                            BUILD_NUMBER=${BUILD_NUMBER}
-                            echo $BUILD_NUMBER
-                            imageTag=$(grep -oP '(?<=backend:)[^ ]+' deployment.yaml)
-                            echo $imageTag
-                            sed -i "s/${AWS_ECR_REPO_NAME}:${imageTag}/${AWS_ECR_REPO_NAME}:${BUILD_NUMBER}/" deployment.yaml
-                            git add deployment.yaml
-                            git commit -m "Update deployment Image to version \${BUILD_NUMBER}"
-                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                        '''
-                    }
-                }
-            }
+        }
+    }
+}
+
         }
     }
 }
